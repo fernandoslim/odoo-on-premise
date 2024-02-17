@@ -1,0 +1,59 @@
+version: '3.9'
+services:
+  db:
+    container_name: db
+    image: postgres:16
+    user: root
+    environment:
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo17@2024
+      - POSTGRES_DB=postgres
+    restart: always
+    ports:
+      - 5432:5432
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+
+  odoo:
+    container_name: odoo
+    image: odoo-enterprise:17
+    user: odoo
+    depends_on:
+      - db
+    ports:
+      - 8069:8069
+      - 8072:8072
+    tty: true
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PORT=5432
+      - PASSWORD=odoo17@2024
+    volumes:
+      - ./odoo/addons:/mnt/extra-addons
+      - ./odoo/etc:/etc/odoo
+      - ./odoo/var/lib:/var/lib/odoo
+    restart: always
+
+  nginx:
+    container_name: nginx
+    image: nginx:latest
+    depends_on:
+      - odoo
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/nginx/ssl
+      - ./certbot/data:/var/www/html
+
+  certbot:
+    container_name: certbot
+    image: certbot/certbot:latest
+    command: certonly --webroot --webroot-path=/var/www/html --email fernandoslim@example.com --agree-tos --no-eff-email -d example.com -d www.example.com
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/logs:/var/log/letsencrypt
+      - ./certbot/data:/var/www/html
